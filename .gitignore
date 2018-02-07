@@ -1,0 +1,7 @@
+__pycache__
+/jit_model.egg-info/
+/build/
+/dist/
+*.pptx
+.ipynb_checkpoints
+.pypirc
