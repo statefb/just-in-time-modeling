@@ -1,10 +1,11 @@
 # -*- coding: utf-8 -*-
 import numpy as np
 from sklearn.base import BaseEstimator,RegressorMixin
+from sklearn.linear_model import LinearRegression
 from .database import DataBase
 from .neighbor import *
 from .lowess import WeightedLinearRegression
-from .feature_select import BaseFeatureSelect,LarsSelect
+from .feature_select import BaseFeatureSelect,LarsSelect,LassoCvSelect
 
 class JitModel(BaseEstimator,RegressorMixin):
     def __init__(self,neighbor_search="sparse_sample",feature_select="lars",\
@@ -22,7 +23,7 @@ class JitModel(BaseEstimator,RegressorMixin):
         self.pre_normalized = pre_normalized
         self.feature_select = feature_select
 
-    def fit(X,y):
+    def fit(self,X,y):
         if not self.pre_normalized:
             X,y,scale_param = normalize(X,y)
             self.scale_param_ = scale_param
@@ -32,7 +33,21 @@ class JitModel(BaseEstimator,RegressorMixin):
         self.results_ = []  #for store prediction result
         return self
 
-    def predict(X,y=None):
+    def predict(self,X,y=None):
+        """
+        Parameters
+        ----------
+        X : 2D array
+            input variables
+        y : 1D array
+            observed output variable
+
+        Returns
+        -------
+        yhat : 1D array
+            predicted output variable
+
+        """
         if not self.pre_normalized:
             X,y = normalize(X,y,self.scale_param_)
         yhat = np.empty(X.shape[0])
@@ -45,13 +60,15 @@ class JitModel(BaseEstimator,RegressorMixin):
             feature_indices = self.feature_select_.select(X_local,y_local)
             X_local = X_local[:,feature_indices]
             # weighted regression
-            local_model = WeightedLinearRegression(weight=weight).fit(X_local,y_local)
-            yhat[idx] = local_model.predict(query)
+            # local_model = WeightedLinearRegression(weight=weight).fit(X_local,y_local)
+            local_model = LinearRegression().fit(X_local,y_local,sample_weight=weight)
+            yhat[idx] = local_model.predict(query[np.newaxis,feature_indices])
 
             # result
             res = dict(
                 yhat=yhat,
                 feature_indices=feature_indices,
+                coef=local_model.coef_,
                 X_local=X_local,
                 y_local=y_local,
                 local_indices=local_indices,
@@ -59,8 +76,9 @@ class JitModel(BaseEstimator,RegressorMixin):
             )
             self.results_.append(res)
 
-            # update database
-            self.update(query,)
+            # update database if observation given
+            if y is not None:
+                self.update(query,y[idx],yhat[idx])
 
         return yhat
 
@@ -100,7 +118,7 @@ def _get_feature_select(feature_select):
         raise ValueError("feature_select must be str or BaseFeatureSelect object")
 
     if feature_select == "lars":
-        return LarsSelect(n_features=6)
+        return LarsSelect(n_features=3)
     elif feature_select == "lassocv":
         return LassoCvSelect(cv=5)
     else:
