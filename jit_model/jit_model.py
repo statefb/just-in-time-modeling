@@ -2,6 +2,7 @@
 import numpy as np
 from sklearn.base import BaseEstimator,RegressorMixin
 from sklearn.linear_model import LinearRegression
+from tqdm import tqdm
 from .database import DataBase
 from .neighbor import *
 from .lowess import WeightedLinearRegression
@@ -51,7 +52,8 @@ class JitModel(BaseEstimator,RegressorMixin):
         if not self.pre_normalized:
             X,y = normalize(X,y,self.scale_param_)
         yhat = np.empty(X.shape[0])
-        for idx,query in enumerate(X):
+        for idx,query in tqdm(enumerate(X)):
+            # import pdb; pdb.set_trace()
             # get part of samples for local regression
             X_local,weight,local_indices = \
                 self.neighbor_search_.search(query,self.database_.X)
@@ -66,7 +68,7 @@ class JitModel(BaseEstimator,RegressorMixin):
 
             # result
             res = dict(
-                yhat=yhat,
+                yhat=yhat[idx],
                 feature_indices=feature_indices,
                 coef=local_model.coef_,
                 X_local=X_local,

@@ -14,7 +14,7 @@ class LarsSelect(BaseFeatureSelect):
         self.n_features = n_features
 
     def select(self,X,y):
-        lars = LassoLars(normalize=True,alpha=0.01)
+        lars = LassoLars(normalize=False,alpha=0.01)
         lars.fit(X,y)
         path_idx = np.argwhere((lars.coef_path_ != 0).sum(axis=0) <= self.n_features)[-1,0]
         coef = lars.coef_path_[:,path_idx]
@@ -26,7 +26,7 @@ class LassoCvSelect(BaseFeatureSelect):
         self.cv = cv
 
     def select(self,X,y):
-        lm = LassoCV(cv=self.cv,normalize=True,max_iter=2000)
+        lm = LassoCV(cv=self.cv,normalize=False,max_iter=2000)
         lm.fit(X,y)
         f_indices = np.argwhere(lm.coef_ != 0).T[0]
         return f_indices

@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import numpy as np
 from sklearn.linear_model import ElasticNet
+from scipy.spatial.distance import mahalanobis
 
 class BaseNeighborSearch():
     def __init__(self):
@@ -38,7 +39,8 @@ class EuclideanSearch(BaseNeighborSearch):
 
 class MahalanobisSearch(BaseNeighborSearch):
     def __init__(self):
-        raise NotImplementedError()
+        super().__init__()
 
     def search(self,query,X):
-        pass
+        mahalanobis(query,X,)
+        return X_local,weight,local_indices
