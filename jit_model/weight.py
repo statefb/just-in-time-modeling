@@ -2,8 +2,8 @@
 import numpy as np
 
 def weight_func(query,X_local,dist):
-    h = determine_bandwidth(query,X_local)
-    x_tri = dist/h
+    # h = determine_bandwidth(query,X_local)
+    x_tri = dist/max(dist)
     weight = tricube(x_tri)
     return weight
 

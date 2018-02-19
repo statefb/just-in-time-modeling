@@ -63,7 +63,12 @@ class JitModel(BaseEstimator,RegressorMixin):
             X_local = X_local[:,feature_indices]
             # weighted regression
             # local_model = WeightedLinearRegression(weight=weight).fit(X_local,y_local)
-            local_model = LinearRegression().fit(X_local,y_local,sample_weight=weight)
+            try:
+                local_model = LinearRegression().fit(X_local,y_local,sample_weight=weight)
+            except:
+                import pdb; pdb.set_trace()
+                X_local,weight,local_indices = \
+                    self.neighbor_search_.search(query,self.database_.X)
             yhat[idx] = local_model.predict(query[np.newaxis,feature_indices])
 
             # result
