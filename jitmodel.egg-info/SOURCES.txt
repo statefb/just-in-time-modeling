@@ -6,6 +6,7 @@ jit_model/jit_model.py
 jit_model/lowess.py
 jit_model/neighbor.py
 jit_model/normalize.py
+jit_model/weight.py
 jitmodel.egg-info/PKG-INFO
 jitmodel.egg-info/SOURCES.txt
 jitmodel.egg-info/dependency_links.txt
