@@ -5,8 +5,8 @@ from scipy.spatial.distance import mahalanobis
 from .weight import weight_func
 
 class BaseNeighborSearch():
-    def __init__(self):
-        pass
+    def __init__(self,ks_ratio=[0.05,0.2,0.3,0.4,0.5]):
+        self.ks_ratio = ks_ratio
 
     def search(query,X):
         raise NotImplementedError("search method must be overrided.")
@@ -39,23 +39,36 @@ class EuclideanSearch(BaseNeighborSearch):
         pass
 
 class MahalanobisSearch(BaseNeighborSearch):
-    def __init__(self,k=10):
+    def __init__(self):
         super().__init__()
-        self.k = k
 
     def search(self,query,X):
         # precision matrix
         vi = np.linalg.inv(np.cov(X.T))
         dist = []
+        # measure distance
         for idx,x in enumerate(X):
             mdist = mahalanobis(query,x,vi)
             dict_ = dict(index=idx,distance=mdist)
             dist.append(dict_)
-        # sort & limit
-        dist_s = sorted(dist,key=lambda x: x["distance"])[:self.k]
-        local_indices = [ds["index"] for ds in dist_s]
-        X_local = X[local_indices,:]
-        local_distance = [ds["distance"] for ds in dist_s]
-        weight = weight_func(query,X_local,local_distance)
 
-        return X_local,weight,local_indices
+        n_samples = X.shape[0]
+        ks = [int(n_samples*kr) for kr in self.ks_ratio]
+
+        X_local_list = []
+        weight_list = []
+        local_indices_list = []
+        for k in ks:
+            if k == 0:
+                raise ValueError("num of train data is too low.")
+            # sort & limit
+            dist_s = sorted(dist,key=lambda x: x["distance"])[:k]
+            local_indices = [ds["index"] for ds in dist_s]
+            X_local = X[local_indices,:]
+            local_distance = [ds["distance"] for ds in dist_s]
+            weight = weight_func(query,X_local,local_distance)
+            X_local_list.append(X_local)
+            weight_list.append(weight)
+            local_indices_list.append(local_indices)
+
+        return X_local_list,weight_list,local_indices_list

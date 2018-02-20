@@ -6,10 +6,10 @@ from tqdm import tqdm
 from .database import DataBase
 from .neighbor import *
 from .lowess import WeightedLinearRegression
-from .feature_select import BaseFeatureSelect,LarsSelect,LassoCvSelect
+from .feature_select import *
 
 class JitModel(BaseEstimator,RegressorMixin):
-    def __init__(self,neighbor_search="sparse_sample",feature_select="lars",\
+    def __init__(self,neighbor_search="sparse_sample",feature_select="weighted_lasso",\
         pre_normalized=True):
         """
         Parameters
@@ -52,17 +52,33 @@ class JitModel(BaseEstimator,RegressorMixin):
         if not self.pre_normalized:
             X,y = normalize(X,y,self.scale_param_)
         yhat = np.empty(X.shape[0])
+
         for idx,query in tqdm(enumerate(X)):
-            # import pdb; pdb.set_trace()
             # get part of samples for local regression
-            X_local,weight,local_indices = \
+            X_local_list,weight_list,local_indices_list = \
                 self.neighbor_search_.search(query,self.database_.X)
+            error_list = []
+            feature_indices_list = []
+            for X_local,weight,local_indices in zip(X_local_list,weight_list,local_indices_list):
+                y_local = self.database_.y[local_indices]
+                # feature selection
+                feature_indices,error = self.feature_select_.select(X_local,y_local,weight)
+
+                error_list.append(error)
+                feature_indices_list.append(feature_indices)
+
+            # determine feature indices which minimize error
+            min_set = sorted(zip(error_list,feature_indices_list,local_indices_list,weight_list))[0]
+            min_set = sorted(zip(error_list,feature_indices_list,local_indices_list,weight_list),key=lambda x:x[0])[0]
+            error = min_set[0]
+            feature_indices = min_set[1]
+            local_indices = min_set[2]
+            weight = min_set[3]
+
+            X_local = self.database_.X[local_indices,:][:,feature_indices]
             y_local = self.database_.y[local_indices]
-            # feature selection
-            feature_indices = self.feature_select_.select(X_local,y_local)
-            X_local = X_local[:,feature_indices]
-            # weighted regression
-            # local_model = WeightedLinearRegression(weight=weight).fit(X_local,y_local)
+
+            # weighted regression using deterimined local sample and features
             try:
                 local_model = LinearRegression().fit(X_local,y_local,sample_weight=weight)
             except:
@@ -74,6 +90,7 @@ class JitModel(BaseEstimator,RegressorMixin):
             # result
             res = dict(
                 yhat=yhat[idx],
+                feature_selection_error=error,
                 feature_indices=feature_indices,
                 coef=local_model.coef_,
                 X_local=X_local,
@@ -123,10 +140,11 @@ def _get_feature_select(feature_select):
         return feature_select
     elif type(feature_select) != str:
         raise ValueError("feature_select must be str or BaseFeatureSelect object")
-
     if feature_select == "lars":
         return LarsSelect(n_features=3)
     elif feature_select == "lassocv":
         return LassoCvSelect(cv=5)
+    elif feature_select == "weighted_lasso":
+        return RWeightedLassoSelectCV()
     else:
         raise NotImplementedError()
